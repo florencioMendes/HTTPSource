@@ -21,16 +21,12 @@ char* receive_from_node(int pipe_fd){
     return strdup(buffer);
 };
 
-void handle_request(int client_socket, int *pipe_fd) {
+void handle_request(int client_socket, int *to_node, int *from_node) {
     char buffer[BUFFER_SIZE] = {0};
-
     read(client_socket, buffer, BUFFER_SIZE);
-    printf("client request: \n%s\n", buffer);
 
-    send_to_node(pipe_fd[1], buffer);
-
-    char *response = receive_from_node(pipe_fd[0]);
-    printf("node response: \n%s\n", response);
+    send_to_node(to_node[1], buffer);
+    char *response = receive_from_node(from_node[0]);
 
     write(client_socket, response, strlen(response));   
     free(response);
@@ -47,18 +43,23 @@ int main() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    int pipe_fd[2];
-    pipe(pipe_fd); 
+    int to_node[2];
+    int from_node[2];
+    pipe(to_node);
+    pipe(from_node);
 
     pid_t pid = fork();
     if(pid == 0) {
-        close(pipe_fd[1]);
-        dup2(pipe_fd[0], STDIN_FILENO);
+        close(to_node[1]);
+        dup2(to_node[0], STDIN_FILENO);
+        close(from_node[0]);
+        dup2(from_node[1], STDOUT_FILENO);
         execlp("node", "node", "processor.js", NULL);
         exit(EXIT_FAILURE);
     }; 
 
-    close(pipe_fd[0]);
+    close(to_node[0]);
+    close(from_node[1]);
 
     if((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < MIN_VALUE_SUCCESS) {
         perror("faile to create socket");
@@ -83,7 +84,7 @@ int main() {
             exit(EXIT_FAILURE);
         };
 
-        handle_request(client_socket, pipe_fd);
+        handle_request(client_socket, to_node, from_node);
     };
 
     return 0;
