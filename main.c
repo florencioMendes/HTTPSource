@@ -30,9 +30,9 @@ void handle_request(int client_socket, int *pipe_fd) {
     send_to_node(pipe_fd[1], buffer);
 
     char *response = receive_from_node(pipe_fd[0]);
-    printf("node response: \n%s\n", *response);
+    printf("node response: \n%s\n", response);
 
-    write(client_socket, *response, strlen(*response));   
+    write(client_socket, response, strlen(response));   
     free(response);
     close(client_socket);
 }
